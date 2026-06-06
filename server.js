@@ -8,7 +8,10 @@ const app = express();
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 connectDB();
 
-app.use(cors());
+app.use(cors({
+  origin: ['https://ayur-care-frontend-panel.vercel.app', 'http://localhost:5173'],
+  credentials: true
+}));
 app.use(express.json());
 
 app.use('/api/auth', require('./routes/authRoutes'));
