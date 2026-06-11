@@ -4,7 +4,7 @@ require('dotenv').config();
 const http = require('http');
 const app = require('./src/app');
 const { connectDB } = require('./src/config/database');
-const { connectRedis } = require('./src/config/redis');
+const { connectRedis, getRedisClient } = require('./src/config/redis');
 const { initializeJobs } = require('./src/jobs');
 const { initializeSockets } = require('./src/sockets');
 const logger = require('./src/utils/logger');
@@ -37,7 +37,7 @@ const gracefulShutdown = (signal) => {
       await mongoose.connection.close(false);
       logger.info('MongoDB connection closed.');
 
-      const { redisClient } = require('./src/config/redis');
+      const redisClient = getRedisClient();
       if (redisClient && redisClient.status === 'ready') {
         await redisClient.quit();
         logger.info('Redis connection closed.');
@@ -82,13 +82,16 @@ const bootstrap = async () => {
     try {
       const mongoose = require('mongoose');
       const db = mongoose.connection.db;
-      const productsCol = db.collection('products');
-      const indexes = await productsCol.indexes();
-      const hasVariantSkuIndex = indexes.some((idx) => idx.name === 'variants.sku_1');
-      if (hasVariantSkuIndex) {
-        logger.info('⚠️ Problematic variants.sku_1 index found. Dropping to prevent product creation duplicate key errors...');
-        await productsCol.dropIndex('variants.sku_1');
-        logger.info('✅ Successfully dropped variants.sku_1 index!');
+      const collections = await db.listCollections({ name: 'products' }).toArray();
+      if (collections.length > 0) {
+        const productsCol = db.collection('products');
+        const indexes = await productsCol.indexes();
+        const hasVariantSkuIndex = indexes.some((idx) => idx.name === 'variants.sku_1');
+        if (hasVariantSkuIndex) {
+          logger.info('⚠️ Dropping variants.sku_1 index...');
+          await productsCol.dropIndex('variants.sku_1');
+          logger.info('✅ Successfully dropped variants.sku_1 index!');
+        }
       }
     } catch (indexErr) {
       logger.error('Failed to manage products indexes:', indexErr);

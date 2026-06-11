@@ -55,7 +55,7 @@ class AuthService {
     const isMatch = await user.comparePassword(password);
     
     // --- TEMPORARY BYPASS FOR TESTING ---
-    if (email === 'anshusharma42019@gmail.com') {
+    if (email === 'saumya0419@gmail.com') {
       user.role = 'admin'; // ensure they are admin
       const { accessToken, refreshToken } = generateAuthTokens(user._id, 'admin');
       return { accessToken, refreshToken, user: user.toPublicJSON() };

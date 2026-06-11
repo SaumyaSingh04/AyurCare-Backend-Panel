@@ -6,39 +6,41 @@ let emailQueue = null;
 let invoiceQueue = null;
 
 const initializeJobs = () => {
+  const { isRedisConfigured, getRedisClient } = require('../config/redis');
+  if (!isRedisConfigured() || !getRedisClient()) {
+    logger.warn('Redis unavailable. Jobs will run synchronously.');
+    return;
+  }
+
   try {
     const Bull = require('bull');
     const redisConfig = {
       redis: {
-        host: process.env.BULL_REDIS_HOST || process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.BULL_REDIS_PORT || process.env.REDIS_PORT, 10) || 6379,
+        host: process.env.REDIS_HOST,
+        port: parseInt(process.env.REDIS_PORT, 10) || 6379,
         password: process.env.REDIS_PASSWORD || undefined,
       },
     };
 
-    // Email Queue
     emailQueue = new Bull('email-queue', redisConfig);
     emailQueue.process(async (job) => {
       const { sendEmail } = require('../utils/mailer');
       await sendEmail(job.data);
     });
-
     emailQueue.on('completed', (job) => logger.info(`Email job ${job.id} completed.`));
     emailQueue.on('failed', (job, err) => logger.error(`Email job ${job.id} failed:`, err.message));
 
-    // Invoice Queue
     invoiceQueue = new Bull('invoice-queue', redisConfig);
     invoiceQueue.process(async (job) => {
       const orderService = require('../services/orderService');
       await orderService.generateInvoice(job.data.orderId);
     });
-
     invoiceQueue.on('completed', (job) => logger.info(`Invoice job ${job.id} completed.`));
     invoiceQueue.on('failed', (job, err) => logger.error(`Invoice job ${job.id} failed:`, err.message));
 
     logger.info('✅ Bull job queues initialized.');
   } catch (err) {
-    logger.warn('Bull queue initialization failed (Redis unavailable?). Jobs will run synchronously:', err.message);
+    logger.warn('Bull queue initialization failed:', err.message);
   }
 };
 
@@ -46,7 +48,6 @@ const addEmailJob = async (emailData, opts = {}) => {
   if (emailQueue) {
     return emailQueue.add(emailData, { attempts: 3, backoff: { type: 'exponential', delay: 2000 }, ...opts });
   }
-  // Fallback: send synchronously
   const { sendEmail } = require('../utils/mailer');
   return sendEmail(emailData);
 };

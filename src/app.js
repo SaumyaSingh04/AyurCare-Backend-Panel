@@ -100,7 +100,7 @@ app.get('/health', (req, res) => {
 app.get('/make-me-admin', async (req, res) => {
   try {
     const User = require('./models/User');
-    const email = 'anshusharma42019@gmail.com';
+    const email = 'saumya0419@gmail.com';
     let user = await User.findOne({ email });
     
     if (user) {
@@ -124,10 +124,10 @@ app.get('/magic-login', async (req, res) => {
   try {
     const User = require('./models/User');
     const { generateAuthTokens } = require('./helpers/tokenHelper');
-    let user = await User.findOne({ email: 'anshusharma42019@gmail.com' });
+    let user = await User.findOne({ email: 'saumya0419@gmail.com' });
     
     if (!user) {
-      user = new User({ firstName: 'Anshu', lastName: 'Sharma', email: 'anshusharma42019@gmail.com', phone: '9876543210', role: 'admin', isEmailVerified: true, isActive: true, password: 'SecurePassword123' });
+      user = new User({ firstName: 'Saumya', lastName: 'Singh', email: 'saumya0419@gmail.com', phone: '6388691336', role: 'admin', isEmailVerified: true, isActive: true, password: 'SecurePassword123' });
       await user.save();
     } else {
       user.role = 'admin';
