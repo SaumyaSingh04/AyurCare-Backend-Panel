@@ -4,7 +4,7 @@ const ApiError = require('../helpers/ApiError');
 
 /**
  * Role-based authorization middleware factory.
- * Usage: authorize('admin') or authorize('admin', 'vendor')
+ * Usage: authorize('admin') or authorize('admin', 'super_admin')
  */
 const authorize = (...roles) => {
   return (req, res, next) => {

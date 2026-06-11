@@ -78,8 +78,6 @@ const productSchema = new mongoose.Schema({
   // Related
   relatedProducts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
 
-  // Vendor (optional multi-vendor)
-  vendor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, {
   timestamps: true,
   toJSON: { virtuals: true, versionKey: false },

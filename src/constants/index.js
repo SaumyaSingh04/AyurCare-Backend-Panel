@@ -20,7 +20,6 @@ const HTTP_STATUS = {
 const ROLES = {
   USER: 'user',
   ADMIN: 'admin',
-  VENDOR: 'vendor',
   SUPER_ADMIN: 'super_admin',
 };
 
