@@ -19,7 +19,7 @@ const generateInvoicePDF = (order) => {
     // ── Header ──────────────────────────────────────────────
     doc.fontSize(20).font('Helvetica-Bold').text('TRIVEN', 50, 50);
     doc.fontSize(10).font('Helvetica').text('Premium Wellness Products', 50, 75);
-    doc.text('www.triven.com | support@triven.com', 50, 88);
+    doc.text('www.medical-ecommerce.com | support@medical-ecommerce.com', 50, 88);
 
     doc.fontSize(22).font('Helvetica-Bold').text('INVOICE', 400, 50, { align: 'right' });
     doc.fontSize(10).font('Helvetica');
@@ -81,7 +81,7 @@ const generateInvoicePDF = (order) => {
     doc.text(`₹${order.totalAmount.toFixed(2)}`, 475, y, { width: 70, align: 'right' });
 
     // ── Footer ─────────────────────────────────────────────────
-    doc.fontSize(9).font('Helvetica').text('Thank you for shopping with Triven!', 50, 720, { align: 'center' });
+    doc.fontSize(9).font('Helvetica').text('Thank you for shopping with Medical E-Commerce!', 50, 720, { align: 'center' });
     doc.text('This is a computer-generated invoice and does not require a signature.', 50, 732, { align: 'center' });
 
     doc.end();

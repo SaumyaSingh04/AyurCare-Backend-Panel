@@ -50,7 +50,7 @@ const uploadBuffer = (buffer, folder, options = {}) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        folder: `${process.env.CLOUDINARY_FOLDER || 'triven-ecommerce'}/${folder}`,
+        folder: `${process.env.CLOUDINARY_FOLDER || 'medical-ecommerce'}/${folder}`,
         resource_type: 'auto',
         ...options,
       },

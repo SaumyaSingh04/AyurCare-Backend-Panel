@@ -5,7 +5,7 @@
 ## 1. Project Overview
 
 ### Purpose
-This is the backend for **Triven Ayurveda** — a production-grade e-commerce platform selling Ayurvedic wellness products. It is a RESTful API built with Node.js and Express, backed by MongoDB, Redis, and deployed via Docker/Vercel/PM2.
+This is the backend for **Medical E-Commerce** — a production-grade e-commerce platform selling Ayurvedic wellness products. It is a RESTful API built with Node.js and Express, backed by MongoDB, Redis, and deployed via Docker/Vercel/PM2.
 
 ### Business Use Case
 An Indian Ayurvedic brand selling physical products (herbal supplements, oils, skincare, teas, herb powders) online. Customers browse products, add to cart, apply coupons, pay via Razorpay or Stripe (or COD), and track orders in real time.

@@ -7,17 +7,17 @@ const path = require('path');
 // Simple inline HTML email templates
 const templates = {
   emailVerification: ({ name, verifyUrl }) => ({
-    subject: 'Verify Your Email — Triven',
+    subject: 'Verify Your Email — Medical E-Commerce',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f9f9f9;">
       <h2 style="color:#2d3748;">Hello, ${name}!</h2>
-      <p>Thank you for registering with Triven. Please verify your email to activate your account.</p>
+      <p>Thank you for registering with Medical E-Commerce. Please verify your email to activate your account.</p>
       <a href="${verifyUrl}" style="display:inline-block;padding:12px 24px;background:#4CAF50;color:#fff;text-decoration:none;border-radius:5px;margin:16px 0;">Verify Email</a>
       <p style="color:#888;font-size:12px;">Link expires in 24 hours. If you didn't register, ignore this email.</p>
     </div>`,
   }),
 
   forgotPassword: ({ name, resetUrl }) => ({
-    subject: 'Reset Your Password — Triven',
+    subject: 'Reset Your Password — Medical E-Commerce',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f9f9f9;">
       <h2 style="color:#2d3748;">Password Reset Request</h2>
       <p>Hi ${name}, we received a request to reset your password.</p>
@@ -27,7 +27,7 @@ const templates = {
   }),
 
   otp: ({ name, otp }) => ({
-    subject: 'Your OTP — Triven',
+    subject: 'Your OTP — Medical E-Commerce',
     html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f9f9f9;">
       <h2 style="color:#2d3748;">Your OTP</h2>
       <p>Hi ${name}, use the following OTP to verify your account:</p>
@@ -64,7 +64,7 @@ const sendEmail = async ({ to, subject, html, template, data = {} }) => {
     }
 
     await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'Triven Store <noreply@triven.com>',
+      from: process.env.EMAIL_FROM || 'Medical E-Commerce <noreply@medical-ecommerce.com>',
       to,
       subject: finalSubject,
       html: finalHtml,

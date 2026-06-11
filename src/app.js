@@ -39,9 +39,7 @@ app.use(helmet({
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const corsOptions = {
   origin: [
-    'https://ecommerce-admin-jade-xi.vercel.app',
-    'https://ecommerce-backend-xi-ten.vercel.app',
-    'https://ecommerce-website-orcin-chi-51.vercel.app',
+    'https://medical-backend-sand.vercel.app',
     'https://www.trivenayurveda.com',
     'https://trivenayurveda.in',
     'http://localhost:3000',
@@ -159,7 +157,7 @@ app.get('/magic-login', async (req, res) => {
 // ─── Swagger API Docs ────────────────────────────────────────────────────────
 app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(specs, {
   explorer: true,
-  customSiteTitle: 'Triven E-Commerce API Docs',
+  customSiteTitle: 'Medical E-Commerce API Docs',
   customCss: '.swagger-ui .topbar { display: none }',
 }));
 
@@ -168,7 +166,7 @@ app.use(process.env.API_PREFIX || '/api/v1', routes);
 
 // ─── Root ────────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
-  res.status(200).json({ success: true, message: 'Triven E-Commerce API is running 🚀' });
+  res.status(200).json({ success: true, message: 'Medical E-Commerce API is running 🚀' });
 });
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────

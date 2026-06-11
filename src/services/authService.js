@@ -39,7 +39,7 @@ class AuthService {
     const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verifyToken_}`;
     await sendEmail({
       to: email,
-      subject: 'Verify Your Email — Triven',
+      subject: 'Verify Your Email — Medical E-Commerce',
       template: 'emailVerification',
       data: { name: firstName, verifyUrl },
     });
@@ -124,7 +124,7 @@ class AuthService {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     await sendEmail({
       to: email,
-      subject: 'Reset Your Password — Triven',
+      subject: 'Reset Your Password — Medical E-Commerce',
       template: 'forgotPassword',
       data: { name: user.firstName, resetUrl },
     });
@@ -147,7 +147,7 @@ class AuthService {
 
     await userRepo.updateById(user._id, { otp: hashed, otpExpiry: expiry, otpAttempts: 0 });
 
-    await sendEmail({ to: user.email, subject: 'Your OTP — Triven', template: 'otp', data: { otp, name: user.firstName } });
+    await sendEmail({ to: user.email, subject: 'Your OTP — Medical E-Commerce', template: 'otp', data: { otp, name: user.firstName } });
     return { message: MESSAGES.OTP_SENT };
   }
 

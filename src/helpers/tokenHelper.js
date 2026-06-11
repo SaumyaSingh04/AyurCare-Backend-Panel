@@ -30,8 +30,8 @@ const generateToken = (payload, type = TOKEN_TYPE.ACCESS) => {
 
   return jwt.sign({ ...payload, tokenType: type }, secret, {
     expiresIn: EXPIRIES[type],
-    issuer: 'triven-ecommerce',
-    audience: 'triven-client',
+    issuer: 'medical-ecommerce',
+    audience: 'medical-client',
   });
 };
 
@@ -47,8 +47,8 @@ const verifyToken = (token, type = TOKEN_TYPE.ACCESS) => {
 
   try {
     return jwt.verify(token, secret, {
-      issuer: 'triven-ecommerce',
-      audience: 'triven-client',
+      issuer: 'medical-ecommerce',
+      audience: 'medical-client',
     });
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
@@ -73,8 +73,8 @@ const generateAuthTokens = (userId, role) => {
   
   const accessToken = jwt.sign({ ...payload, tokenType: TOKEN_TYPE.ACCESS }, SECRETS[TOKEN_TYPE.ACCESS], {
     expiresIn: userExpiry,
-    issuer: 'triven-ecommerce',
-    audience: 'triven-client',
+    issuer: 'medical-ecommerce',
+    audience: 'medical-client',
   });
   
   const refreshToken = generateToken(payload, TOKEN_TYPE.REFRESH);
