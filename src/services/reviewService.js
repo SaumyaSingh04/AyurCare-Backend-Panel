@@ -42,12 +42,11 @@ class ReviewService {
     return reviewRepo.deleteById(reviewId);
   }
 
-  async voteHelpful(reviewId, userId, helpful) {
+  async voteHelpful(reviewId, userId) {
     const review = await reviewRepo.findById(reviewId);
     if (!review) throw ApiError.notFound('Review not found.');
     if (review.votedBy.includes(userId)) throw ApiError.conflict('Already voted.');
-    const inc = helpful ? { helpfulVotes: 1 } : {};
-    return reviewRepo.updateById(reviewId, { $inc: inc, $addToSet: { votedBy: userId } }, { new: true });
+    return reviewRepo.voteHelpful(reviewId, userId);
   }
 }
 

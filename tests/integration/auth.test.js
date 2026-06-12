@@ -6,9 +6,8 @@ process.env.JWT_REFRESH_SECRET = 'test_refresh_secret_32chars_minimum';
 process.env.JWT_EMAIL_VERIFY_SECRET = 'test_verify_secret';
 process.env.JWT_RESET_PASSWORD_SECRET = 'test_reset_secret';
 process.env.NODE_ENV = 'test';
-process.env.MONGO_URI_TEST = 'mongodb+srv://saumya0419:saumya@office.g5zajix.mongodb.net/medical';
 
-const { connectTestDB, disconnectTestDB, clearAllCollections, request } = require('../helpers/testHelpers');
+const { connectTestDB, disconnectTestDB, clearAllCollections, createTestUser, request } = require('../helpers/testHelpers');
 
 beforeAll(async () => {
   await connectTestDB();
@@ -60,9 +59,7 @@ describe('POST /api/v1/auth/login', () => {
   const user = { firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', password: 'SecurePass@1' };
 
   beforeEach(async () => {
-    // Create and verify user directly
-    const User = require('../../src/models/User');
-    await User.create({ ...user, isEmailVerified: true, isActive: true });
+    await createTestUser({ ...user, isEmailVerified: true, isActive: true });
   });
 
   test('logs in with correct credentials', async () => {

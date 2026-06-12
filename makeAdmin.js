@@ -1,46 +1,45 @@
+'use strict';
+
 require('dotenv').config();
-const mongoose = require('mongoose');
-const User = require('./src/models/User');
+const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
+
+const prisma = new PrismaClient();
 
 const makeAdmin = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log('Connected to MongoDB');
-
     const email = 'saumya0419@gmail.com';
-    let user = await User.findOne({ email });
+    const hashed = await bcrypt.hash('SecurePassword123', 12);
 
-    if (user) {
-      console.log('User found! Upgrading to Admin...');
-      user.role = 'admin';
-      user.isEmailVerified = true;
-      user.isActive = true;
-      user.password = 'SecurePassword123'; // Force reset password so they can log in
-      // Reset login attempts just in case
-      user.loginAttempts = 0;
-      user.lockUntil = null;
-      await user.save();
-      console.log(`Success! ${email} is now a fully verified Admin.`);
-    } else {
-      console.log('User not found. Creating a new Admin account...');
-      user = new User({
+    const user = await prisma.user.upsert({
+      where: { email },
+      create: {
         firstName: 'Saumya',
         lastName: 'Singh',
-        email: email,
+        email,
         phone: '6388691336',
-        password: 'SecurePassword123', // This will be hashed automatically by the pre-save hook
+        password: hashed,
         role: 'admin',
         isEmailVerified: true,
-        isActive: true
-      });
-      await user.save();
-      console.log(`Success! Created new Admin account for ${email}.`);
-    }
+        isActive: true,
+      },
+      update: {
+        role: 'admin',
+        isEmailVerified: true,
+        isActive: true,
+        password: hashed,
+        loginAttempts: 0,
+        lockUntil: null,
+      },
+    });
 
+    console.log(`✅ ${user.email} is now an Admin (id: ${user.id})`);
     process.exit(0);
   } catch (err) {
-    console.error('Error:', err);
+    console.error('Error:', err.message);
     process.exit(1);
+  } finally {
+    await prisma.$disconnect();
   }
 };
 

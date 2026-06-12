@@ -125,11 +125,7 @@ class BlogService {
 
     const [blogs, total] = await Promise.all([
       blogRepo.search(q, filter, skip, limit),
-      blogRepo.count({
-        ...filter,
-        status: 'published',
-        ...(q ? { $text: { $search: q } } : {}),
-      }),
+      blogRepo.count({ ...filter, status: 'published' }),
     ]);
 
     return { blogs, meta: buildPaginationMeta(total, page, limit) };

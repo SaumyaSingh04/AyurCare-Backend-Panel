@@ -1,30 +1,25 @@
 'use strict';
 
-const mongoose = require('mongoose');
-const Product = require('./src/models/Product');
-const Category = require('./src/models/Category');
+require('dotenv').config();
+const { PrismaClient } = require('@prisma/client');
 
-const uri = process.env.MONGO_URI || 'mongodb+srv://saumya0419:saumya@office.g5zajix.mongodb.net/medical';
+const prisma = new PrismaClient();
 
-async function main() {
-  await mongoose.connect(uri);
-  console.log('Connected to DB');
+const getProducts = async () => {
+  try {
+    const products = await prisma.product.findMany({
+      take: 20,
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, name: true, price: true, stock: true, isActive: true },
+    });
+    console.log(JSON.stringify(products, null, 2));
+    process.exit(0);
+  } catch (err) {
+    console.error('Error:', err.message);
+    process.exit(1);
+  } finally {
+    await prisma.$disconnect();
+  }
+};
 
-  const products = await Product.find().populate('category');
-  products.forEach(p => {
-    console.log(`ID: ${p._id}`);
-    console.log(`Name: ${p.name}`);
-    console.log(`Category: ${p.category ? p.category.name : 'None'}`);
-    console.log(`Price: ₹${p.price}`);
-    console.log(`Thumbnail: ${p.thumbnail ? p.thumbnail.url : 'None'}`);
-    console.log(`Images: ${JSON.stringify(p.images)}`);
-    console.log('-----------------------------------------');
-  });
-
-  await mongoose.disconnect();
-}
-
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+getProducts();

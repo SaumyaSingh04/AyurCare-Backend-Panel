@@ -48,49 +48,27 @@ class UserService {
   }
 
   async addAddress(userId, addressData) {
-    const user = await userRepo.findById(userId);
-    if (!user) throw ApiError.notFound('User not found.');
-
-    if (addressData.isDefault) {
-      await userRepo.updateById(userId, { $set: { 'addresses.$[].isDefault': false } });
-    }
-
-    const updated = await userRepo.updateById(userId,
-      { $push: { addresses: addressData } }, { new: true }
-    );
+    const updated = await userRepo.addAddress(userId, addressData);
+    if (!updated) throw ApiError.notFound('User not found.');
     return updated.addresses;
   }
 
   async updateAddress(userId, addressId, addressData) {
-    const update = {};
-    Object.keys(addressData).forEach((key) => {
-      update[`addresses.$.${key}`] = addressData[key];
-    });
-
-    const user = await userRepo.updateOne(
-      { _id: userId, 'addresses._id': addressId },
-      { $set: update },
-      { new: true }
-    );
-    if (!user) throw ApiError.notFound('Address not found.');
-    return user.addresses;
+    const updated = await userRepo.updateAddress(userId, addressId, addressData);
+    if (!updated) throw ApiError.notFound('Address not found.');
+    return updated.addresses;
   }
 
   async deleteAddress(userId, addressId) {
-    const user = await userRepo.updateById(userId,
-      { $pull: { addresses: { _id: addressId } } }, { new: true }
-    );
-    if (!user) throw ApiError.notFound('User not found.');
-    return user.addresses;
+    const updated = await userRepo.deleteAddress(userId, addressId);
+    if (!updated) throw ApiError.notFound('User not found.');
+    return updated.addresses;
   }
 
   async setDefaultAddress(userId, addressId) {
-    await userRepo.updateById(userId, { $set: { 'addresses.$[].isDefault': false } });
-    return userRepo.updateOne(
-      { _id: userId, 'addresses._id': addressId },
-      { $set: { 'addresses.$.isDefault': true } },
-      { new: true }
-    );
+    const updated = await userRepo.setDefaultAddress(userId, addressId);
+    if (!updated) throw ApiError.notFound('User not found.');
+    return updated.addresses;
   }
 
   async getWishlist(userId) {

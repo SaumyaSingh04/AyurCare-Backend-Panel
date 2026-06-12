@@ -22,7 +22,7 @@ const authenticate = async (req, res, next) => {
     if (!user) throw ApiError.unauthorized('User no longer exists.');
     if (!user.isActive) throw ApiError.forbidden('Account is inactive.');
 
-    req.user = { id: user._id.toString(), role: user.role, email: user.email };
+    req.user = { id: user.id, role: user.role, email: user.email };
     next();
   } catch (err) {
     next(err);
@@ -38,7 +38,7 @@ const optionalAuth = async (req, res, next) => {
     if (token) {
       const payload = verifyToken(token, TOKEN_TYPE.ACCESS);
       const user = await userRepo.findById(payload.userId);
-      if (user && user.isActive) req.user = { id: user._id.toString(), role: user.role };
+      if (user && user.isActive) req.user = { id: user.id, role: user.role };
     }
   } catch (_) { /* ignore */ }
   next();

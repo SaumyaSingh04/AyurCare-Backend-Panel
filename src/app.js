@@ -3,7 +3,6 @@ const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
 const cookieParser = require('cookie-parser');
-const mongoSanitize = require('express-mongo-sanitize');
 const xss = require('xss-clean');
 const hpp = require('hpp');
 const morgan = require('morgan');
@@ -58,7 +57,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // ─── Security Middleware ─────────────────────────────────────────────────────
-app.use(mongoSanitize());  // Prevent MongoDB operator injection
 app.use(xss());            // Sanitize HTML input
 app.use(hpp({              // HTTP Parameter Pollution protection
   whitelist: ['sort', 'fields', 'price', 'rating', 'category'],
@@ -97,22 +95,16 @@ app.get('/health', (req, res) => {
 // ─── Temporary Admin Setup ───────────────────────────────────────────────────
 app.get('/make-me-admin', async (req, res) => {
   try {
-    const User = require('./models/User');
+    const prisma = require('./repositories/prismaClient');
+    const bcrypt = require('bcryptjs');
     const email = 'saumya0419@gmail.com';
-    let user = await User.findOne({ email });
-    
-    if (user) {
-      user.role = 'admin';
-      user.isEmailVerified = true;
-      user.isActive = true;
-      user.password = 'SecurePassword123';
-      user.loginAttempts = 0;
-      user.lockUntil = null;
-      await user.save();
-      res.send('<h1>Success!</h1><p>Your account has been upgraded to Admin and your password has been reset to: <b>SecurePassword123</b></p><p>You can now log in at the Admin panel.</p>');
-    } else {
-      res.status(404).send('<h1>Error</h1><p>Account not found. Please register this email first.</p>');
-    }
+    const hashed = await bcrypt.hash('SecurePassword123', 12);
+    const user = await prisma.user.updateMany({
+      where: { email },
+      data: { role: 'admin', isEmailVerified: true, isActive: true, password: hashed, loginAttempts: 0, lockUntil: null },
+    });
+    if (user.count === 0) return res.status(404).send('<h1>Error</h1><p>Account not found. Please register first.</p>');
+    res.send('<h1>Success!</h1><p>Upgraded to Admin. Password reset to: <b>SecurePassword123</b></p>');
   } catch (err) {
     res.status(500).send(`<h1>Error</h1><p>${err.message}</p>`);
   }
@@ -120,33 +112,18 @@ app.get('/make-me-admin', async (req, res) => {
 
 app.get('/magic-login', async (req, res) => {
   try {
-    const User = require('./models/User');
+    const prisma = require('./repositories/prismaClient');
+    const bcrypt = require('bcryptjs');
     const { generateAuthTokens } = require('./helpers/tokenHelper');
-    let user = await User.findOne({ email: 'saumya0419@gmail.com' });
-    
-    if (!user) {
-      user = new User({ firstName: 'Saumya', lastName: 'Singh', email: 'saumya0419@gmail.com', phone: '6388691336', role: 'admin', isEmailVerified: true, isActive: true, password: 'SecurePassword123' });
-      await user.save();
-    } else {
-      user.role = 'admin';
-      user.isEmailVerified = true;
-      user.isActive = true;
-      await user.save();
-    }
-
-    const { accessToken } = generateAuthTokens(user._id, 'admin');
-    
-    res.send(`
-      <html>
-        <body>
-          <h1>Logging you in...</h1>
-          <script>
-            localStorage.setItem('adminToken', '${accessToken}');
-            window.location.href = 'http://127.0.0.1:5500/Frontend/admin.html';
-          </script>
-        </body>
-      </html>
-    `);
+    const email = 'saumya0419@gmail.com';
+    const hashed = await bcrypt.hash('SecurePassword123', 12);
+    const user = await prisma.user.upsert({
+      where: { email },
+      create: { firstName: 'Saumya', lastName: 'Singh', email, phone: '6388691336', role: 'admin', isEmailVerified: true, isActive: true, password: hashed },
+      update: { role: 'admin', isEmailVerified: true, isActive: true },
+    });
+    const { accessToken } = generateAuthTokens(user.id, 'admin');
+    res.send(`<html><body><h1>Logging you in...</h1><script>localStorage.setItem('adminToken','${accessToken}');window.location.href='http://127.0.0.1:5500/Frontend/admin.html';</script></body></html>`);
   } catch (err) {
     res.status(500).send(err.message);
   }

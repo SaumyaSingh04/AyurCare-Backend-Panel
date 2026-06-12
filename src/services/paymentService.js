@@ -33,8 +33,8 @@ class PaymentService {
       status: PAYMENT_STATUS.CREATED,
     });
 
-    await orderRepo.updateById(orderId, { payment: payment._id });
-    return { razorpayOrderId: rzpOrder.id, razorpayKeyId: process.env.RAZORPAY_KEY_ID?.trim(), amount: rzpOrder.amount, currency: rzpOrder.currency, paymentId: payment._id };
+    await orderRepo.updateById(orderId, { payment: payment.id });
+    return { razorpayOrderId: rzpOrder.id, razorpayKeyId: process.env.RAZORPAY_KEY_ID?.trim(), amount: rzpOrder.amount, currency: rzpOrder.currency, paymentId: payment.id };
   }
 
   async verifyRazorpayPayment({ razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId }) {
@@ -44,7 +44,7 @@ class PaymentService {
     const payment = await paymentRepo.findByRazorpayOrderId(razorpayOrderId);
     if (!payment) throw ApiError.notFound('Payment record not found.');
 
-    await paymentRepo.updateById(payment._id, {
+    await paymentRepo.updateById(payment.id, {
       razorpayPaymentId,
       razorpaySignature,
       status: PAYMENT_STATUS.CAPTURED,
@@ -58,7 +58,7 @@ class PaymentService {
       type: NOTIFICATION_TYPE.PAYMENT_SUCCESS,
       title: 'Payment Successful',
       message: `Payment of ₹${payment.amount} received for your order.`,
-      data: { orderId, paymentId: payment._id },
+      data: { orderId, paymentId: payment.id },
     });
 
     return { message: MESSAGES.PAYMENT_SUCCESS };
@@ -87,8 +87,8 @@ class PaymentService {
       status: PAYMENT_STATUS.CREATED,
     });
 
-    await orderRepo.updateById(orderId, { payment: payment._id });
-    return { clientSecret: intent.client_secret, paymentId: payment._id };
+    await orderRepo.updateById(orderId, { payment: payment.id });
+    return { clientSecret: intent.client_secret, paymentId: payment.id };
   }
 
   async handleRazorpayWebhook(rawBody, signature) {
@@ -100,9 +100,7 @@ class PaymentService {
     const event = JSON.parse(rawBody);
     const payment = await paymentRepo.findByRazorpayOrderId(event.payload?.payment?.entity?.order_id);
     if (payment) {
-      await paymentRepo.updateById(payment._id, {
-        $push: { webhookEvents: { event: event.event, payload: event.payload, receivedAt: new Date() } },
-      });
+      await paymentRepo.pushWebhookEvent(payment.id, { event: event.event, payload: event.payload, receivedAt: new Date() });
     }
     return { received: true };
   }
@@ -142,10 +140,7 @@ class PaymentService {
       refundId = refund.id;
     }
 
-    await paymentRepo.updateById(paymentId, {
-      $push: { refunds: { amount, reason, refundId, status: 'processed', processedAt: new Date() } },
-      $inc: { totalRefunded: amount },
-    });
+    await paymentRepo.pushRefund(paymentId, { amount, reason, refundId, status: 'processed', processedAt: new Date() });
 
     return { message: MESSAGES.REFUND_INITIATED, refundId };
   }

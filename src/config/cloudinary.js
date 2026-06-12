@@ -1,7 +1,7 @@
 'use strict';
 
 const { v2: cloudinary } = require('cloudinary');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multer = require('multer');
 const logger = require('../utils/logger');
 
 cloudinary.config({
@@ -14,21 +14,9 @@ cloudinary.config({
 logger.info('✅ Cloudinary configured.');
 
 /**
- * Create a Cloudinary multer storage for a specific resource folder
+ * Returns multer memory storage; actual upload to Cloudinary happens via uploadBuffer
  */
-const createCloudinaryStorage = (folder, allowedFormats = ['jpg', 'jpeg', 'png', 'webp']) => {
-  return new CloudinaryStorage({
-    cloudinary,
-    params: async (req, file) => ({
-      folder: `${process.env.CLOUDINARY_FOLDER || 'medical-ecommerce'}/${folder}`,
-      allowed_formats: allowedFormats,
-      transformation: [{ width: 1200, crop: 'limit', quality: 'auto:good' }],
-      resource_type: 'image',
-      use_filename: false,
-      unique_filename: true,
-    }),
-  });
-};
+const createCloudinaryStorage = () => multer.memoryStorage();
 
 /**
  * Delete a Cloudinary resource by public_id

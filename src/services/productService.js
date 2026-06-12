@@ -93,9 +93,7 @@ class ProductService {
 
   async deleteProductImage(productId, publicId) {
     await deleteCloudinaryResource(publicId).catch(() => {});
-    return productRepo.updateById(productId,
-      { $pull: { images: { publicId } } }, { new: true }
-    );
+    return productRepo.removeImage(productId, publicId);
   }
 
   async searchProducts(query, queryParams) {
@@ -103,7 +101,7 @@ class ProductService {
     const filter = await productRepo.buildFilter(queryParams);
     const [products, total] = await Promise.all([
       productRepo.search(query, filter, undefined, skip, limit),
-      productRepo.count({ ...filter, ...(query ? { $text: { $search: query } } : {}) }),
+      productRepo.count(filter),
     ]);
     return { products, meta: buildPaginationMeta(total, page, limit) };
   }

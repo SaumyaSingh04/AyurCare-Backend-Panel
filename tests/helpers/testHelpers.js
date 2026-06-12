@@ -1,58 +1,54 @@
 'use strict';
 
-const mongoose = require('mongoose');
 const supertest = require('supertest');
 const app = require('../../src/app');
+const prisma = require('../../src/repositories/prismaClient');
+const bcrypt = require('bcryptjs');
 
-let mongoUri;
-
-/**
- * Connect to the test MongoDB database
- */
 const connectTestDB = async () => {
-  mongoUri = process.env.MONGO_URI_TEST || 'mongodb+srv://saumya0419:saumya@office.g5zajix.mongodb.net/medical';
-  await mongoose.connect(mongoUri);
+  await prisma.$connect();
 };
 
-/**
- * Disconnect and clean up test database
- */
 const disconnectTestDB = async () => {
-  await mongoose.connection.dropDatabase();
-  await mongoose.connection.close();
+  await prisma.$disconnect();
 };
 
-/**
- * Clear all collections between tests
- */
 const clearAllCollections = async () => {
-  const collections = mongoose.connection.collections;
-  await Promise.all(Object.values(collections).map((c) => c.deleteMany({})));
+  // Delete in dependency order to avoid FK violations
+  await prisma.cartItem.deleteMany({});
+  await prisma.cart.deleteMany({});
+  await prisma.orderItem.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.payment.deleteMany({});
+  await prisma.review.deleteMany({});
+  await prisma.notification.deleteMany({});
+  await prisma.coupon.deleteMany({});
+  await prisma.product.deleteMany({});
+  await prisma.category.deleteMany({});
+  await prisma.user.deleteMany({});
 };
 
-/**
- * Create a test user directly in the DB
- */
 const createTestUser = async (overrides = {}) => {
-  const User = require('../../src/models/User');
-  return User.create({
-    firstName: 'Test',
-    lastName: 'User',
-    email: `test_${Date.now()}@example.com`,
-    password: 'TestPass@123',
-    isEmailVerified: true,
-    isActive: true,
-    role: 'user',
-    ...overrides,
+  const password = overrides.password || 'TestPass@123';
+  const hashed = await bcrypt.hash(password, 10);
+  return prisma.user.create({
+    data: {
+      firstName: 'Test',
+      lastName: 'User',
+      email: `test_${Date.now()}@example.com`,
+      password: hashed,
+      isEmailVerified: true,
+      isActive: true,
+      role: 'user',
+      ...overrides,
+      ...(overrides.password ? { password: hashed } : {}),
+    },
   });
 };
 
-/**
- * Create an authenticated test request with JWT
- */
 const getAuthHeader = async (user) => {
   const { generateAuthTokens } = require('../../src/helpers/tokenHelper');
-  const { accessToken } = generateAuthTokens(user._id, user.role);
+  const { accessToken } = generateAuthTokens(user.id || user._id, user.role);
   return { Authorization: `Bearer ${accessToken}` };
 };
 

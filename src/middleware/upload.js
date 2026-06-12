@@ -3,7 +3,7 @@
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const { createCloudinaryStorage } = require('../config/cloudinary');
+const { createCloudinaryStorage, uploadBuffer } = require('../config/cloudinary');
 const ApiError = require('../helpers/ApiError');
 const { UPLOAD } = require('../constants');
 
@@ -47,68 +47,77 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+// Upload a single file object (req.file or item from req.files) to Cloudinary
+const uploadFileToCloudinary = async (file, folder) => {
+  const result = await uploadBuffer(file.buffer, folder, {
+    folder: `${process.env.CLOUDINARY_FOLDER || 'medical-ecommerce'}/${folder}`,
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 1200, crop: 'limit', quality: 'auto:good' }],
+    resource_type: 'image',
+  });
+  file.path = result.secure_url;
+  file.filename = result.public_id;
+  return file;
+};
+
 // Master wrapper to handle dynamic fallback and local path remapping seamlessly
 const makeDynamicUpload = (folder, options = {}) => {
   const isCloudy = isCloudinaryConfigured();
-  const storage = isCloudy ? createCloudinaryStorage(folder) : getLocalStorage(folder);
+  const storage = isCloudy ? createCloudinaryStorage() : getLocalStorage(folder);
   const uploader = multer({
     storage,
     limits: options.limits || { fileSize: UPLOAD.MAX_SIZE_BYTES },
     fileFilter: options.fileFilter || fileFilter,
   });
 
-  const mapFiles = (req) => {
-    if (!isCloudy) {
+  const mapFiles = async (req) => {
+    if (isCloudy) {
+      if (req.file) await uploadFileToCloudinary(req.file, folder);
+      if (req.files) {
+        if (Array.isArray(req.files)) {
+          await Promise.all(req.files.map(f => uploadFileToCloudinary(f, folder)));
+        } else {
+          await Promise.all(
+            Object.values(req.files).flat().map(f => uploadFileToCloudinary(f, folder))
+          );
+        }
+      }
+    } else {
       if (req.file && !req.file.path.startsWith('http')) {
         req.file.path = `/uploads/${folder}/${req.file.filename}`;
       }
       if (req.files) {
-        if (Array.isArray(req.files)) {
-          req.files.forEach(f => {
-            if (f.path && !f.path.startsWith('http')) {
-              f.path = `/uploads/${folder}/${f.filename}`;
-            }
-          });
-        } else {
-          Object.keys(req.files).forEach(key => {
-            req.files[key].forEach(f => {
-              if (f.path && !f.path.startsWith('http')) {
-                f.path = `/uploads/${folder}/${f.filename}`;
-              }
-            });
-          });
-        }
+        const files = Array.isArray(req.files) ? req.files : Object.values(req.files).flat();
+        files.forEach(f => {
+          if (f.path && !f.path.startsWith('http')) f.path = `/uploads/${folder}/${f.filename}`;
+        });
       }
     }
   };
 
   return {
     single: (fieldname) => (req, res, next) => {
-      uploader.single(fieldname)(req, res, (err) => {
+      uploader.single(fieldname)(req, res, async (err) => {
         if (err) return next(err);
-        mapFiles(req);
-        next();
+        try { await mapFiles(req); next(); } catch (e) { next(e); }
       });
     },
     array: (fieldname, maxCount) => (req, res, next) => {
-      uploader.array(fieldname, maxCount)(req, res, (err) => {
+      uploader.array(fieldname, maxCount)(req, res, async (err) => {
         if (err) return next(err);
-        mapFiles(req);
-        next();
+        try { await mapFiles(req); next(); } catch (e) { next(e); }
       });
     },
     fields: (fields) => (req, res, next) => {
-      uploader.fields(fields)(req, res, (err) => {
+      uploader.fields(fields)(req, res, async (err) => {
         if (err) return next(err);
-        mapFiles(req);
-        next();
+        try { await mapFiles(req); next(); } catch (e) { next(e); }
       });
     },
     any: () => (req, res, next) => {
-      uploader.any()(req, res, (err) => {
+      uploader.any()(req, res, async (err) => {
         if (err) return next(err);
-        mapFiles(req);
-        next();
+        try { await mapFiles(req); next(); } catch (e) { next(e); }
       });
     }
   };

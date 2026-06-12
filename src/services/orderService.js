@@ -2,6 +2,7 @@
 
 const orderRepo = require('../repositories/orderRepo');
 const productRepo = require('../repositories/productRepo');
+const userRepo = require('../repositories/userRepo');
 const cartService = require('./cartService');
 const notificationService = require('./notificationService');
 const { generateInvoicePDF } = require('../utils/pdfGenerator');
@@ -39,7 +40,7 @@ class OrderService {
       const totalPrice = price * item.quantity;
       subtotal += totalPrice;
       orderItems.push({
-        product: product ? product._id : null, // Allowed to be null now
+        product: product ? product.id : null,
         variant: item.variantId,
         name: name,
         slug: product ? product.slug : item.productId,
@@ -61,9 +62,11 @@ class OrderService {
     const totalAmount = subtotal + shippingCharge + taxAmount - couponDiscount; // codConfirmationCharge is prepaid, not added to total
 
     // Get user's shipping address
-    const User = require('../models/User');
-    const user = await User.findById(userId);
-    const address = user.addresses.id(shippingAddressId);
+    const user = await userRepo.findById(userId);
+    if (!user) throw ApiError.notFound('User not found.');
+    const address = (user.addresses || []).find(
+      (a) => a._id?.toString() === shippingAddressId || a.id === shippingAddressId
+    );
     if (!address) throw ApiError.badRequest('Shipping address not found.');
 
     const order = await orderRepo.create({
@@ -76,7 +79,7 @@ class OrderService {
       couponDiscount,
       codConfirmationCharge,
       totalAmount,
-      shippingAddress: address.toObject(),
+      shippingAddress: address,
       paymentMethod,
       status: ORDER_STATUS.PENDING,
       customerNote,
@@ -97,7 +100,7 @@ class OrderService {
       type: NOTIFICATION_TYPE.ORDER_PLACED,
       title: 'Order Placed!',
       message: `Your order #${order.orderNumber} has been placed successfully.`,
-      data: { orderId: order._id },
+      data: { orderId: order.id },
     });
 
     return order;
@@ -115,7 +118,7 @@ class OrderService {
   async getOrderById(orderId, userId, role) {
     const order = await orderRepo.findWithPayment(orderId);
     if (!order) throw ApiError.notFound('Order not found.');
-    if (role !== 'admin' && order.user._id.toString() !== userId) throw ApiError.forbidden();
+    if (role !== 'admin' && order.user.toString() !== userId) throw ApiError.forbidden();
     return order;
   }
 
@@ -138,7 +141,7 @@ class OrderService {
       type: NOTIFICATION_TYPE.ORDER_CANCELLED,
       title: 'Order Cancelled',
       message: `Order #${order.orderNumber} has been cancelled.`,
-      data: { orderId: order._id },
+      data: { orderId: order.id },
     });
 
     return updated;
@@ -154,8 +157,7 @@ class OrderService {
       status: ORDER_STATUS.RETURN_REQUESTED,
       returnReason: reason,
       returnRequestedAt: new Date(),
-      $push: { statusHistory: { status: ORDER_STATUS.RETURN_REQUESTED, note: reason, updatedBy: userId } },
-    }, { new: true });
+    }).then(() => orderRepo.addStatusHistory(orderId, ORDER_STATUS.RETURN_REQUESTED, reason, userId));
   }
 
   async updateOrderStatus(orderId, status, note, adminId) {
@@ -167,7 +169,7 @@ class OrderService {
       type: NOTIFICATION_TYPE[`ORDER_${status.toUpperCase()}`] || NOTIFICATION_TYPE.SYSTEM,
       title: `Order ${status}`,
       message: `Your order #${order.orderNumber} status: ${status}.`,
-      data: { orderId: order._id },
+      data: { orderId: order.id },
     });
 
     return updated;
@@ -193,7 +195,7 @@ class OrderService {
 
     // Link payment, confirm order status and payment status
     await orderRepo.updateById(orderId, {
-      payment: payment._id,
+      payment: payment.id,
       paymentStatus: PAYMENT_STATUS.PAID,
       status: ORDER_STATUS.CONFIRMED,
     });
@@ -203,7 +205,7 @@ class OrderService {
       type: NOTIFICATION_TYPE.PAYMENT_SUCCESS,
       title: 'COD Confirmed',
       message: `COD confirmation charge of ₹${COD_SETTINGS.CONFIRMATION_CHARGE} collected for order #${order.orderNumber}.`,
-      data: { orderId: order._id },
+      data: { orderId: order.id },
     });
 
     return { message: MESSAGES.COD_CHARGE_PAID, codConfirmationCharge: COD_SETTINGS.CONFIRMATION_CHARGE };

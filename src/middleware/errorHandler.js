@@ -20,24 +20,17 @@ const errorHandler = (err, req, res, next) => {
   let message = err.message || MESSAGES.INTERNAL_ERROR;
   let errors = err.errors || null;
 
-  // Mongoose CastError (invalid ObjectId)
-  if (err.name === 'CastError') {
-    statusCode = HTTP_STATUS.BAD_REQUEST;
-    message = `Invalid ${err.path}: ${err.value}`;
-  }
-
-  // Mongoose Validation Error
-  if (err.name === 'ValidationError') {
-    statusCode = HTTP_STATUS.UNPROCESSABLE;
-    errors = Object.values(err.errors).map((e) => ({ field: e.path, message: e.message }));
-    message = MESSAGES.VALIDATION_ERROR;
-  }
-
-  // MongoDB Duplicate Key
-  if (err.code === 11000) {
+  // Prisma unique constraint violation (P2002)
+  if (err.code === 'P2002') {
     statusCode = HTTP_STATUS.CONFLICT;
-    const field = Object.keys(err.keyValue || {})[0] || 'field';
+    const field = err.meta?.target?.[0] || 'field';
     message = `${field} already exists.`;
+  }
+
+  // Prisma record not found (P2025)
+  if (err.code === 'P2025') {
+    statusCode = HTTP_STATUS.NOT_FOUND;
+    message = err.meta?.cause || 'Record not found.';
   }
 
   // JWT errors handled in tokenHelper already, but catch residual

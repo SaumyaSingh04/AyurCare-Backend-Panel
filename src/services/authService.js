@@ -162,7 +162,7 @@ class AuthService {
 
     const isMatch = await compareOTP(otp, stored.otp);
     if (!isMatch) {
-      await userRepo.updateById(user._id, { $inc: { otpAttempts: 1 } });
+      await userRepo.incrementOtpAttempts(user._id);
       throw ApiError.badRequest(MESSAGES.OTP_INVALID);
     }
 

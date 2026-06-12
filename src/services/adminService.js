@@ -39,13 +39,16 @@ class AdminService {
     const { page, limit, skip } = parsePagination(queryParams);
     const filter = {};
     if (queryParams.role) filter.role = queryParams.role;
+
     if (queryParams.search) {
-      filter.$or = [
-        { firstName: new RegExp(queryParams.search, 'i') },
-        { lastName: new RegExp(queryParams.search, 'i') },
-        { email: new RegExp(queryParams.search, 'i') },
-      ];
+      const [users, total] = await Promise.all([
+        userRepo.searchUsers(queryParams.search),
+        userRepo.count({ role: queryParams.role }),
+      ]);
+      const paged = users.slice(skip, skip + limit);
+      return { users: paged, meta: buildPaginationMeta(total, page, limit) };
     }
+
     const [users, total] = await Promise.all([
       userRepo.findAll(filter, { sort: { createdAt: -1 }, skip, limit }),
       userRepo.count(filter),
@@ -71,9 +74,17 @@ class AdminService {
   async listProducts(queryParams) {
     const { page, limit, skip } = parsePagination(queryParams);
     const filter = {};
-    if (queryParams.search) filter.$text = { $search: queryParams.search };
     if (queryParams.category) filter.category = queryParams.category;
     if (queryParams.isActive !== undefined) filter.isActive = queryParams.isActive === 'true';
+
+    if (queryParams.search) {
+      const [products, total] = await Promise.all([
+        productRepo.search(queryParams.search, filter, undefined, skip, limit),
+        productRepo.count(filter),
+      ]);
+      return { products, meta: buildPaginationMeta(total, page, limit) };
+    }
+
     const [products, total] = await Promise.all([
       productRepo.findAll(filter, { sort: { createdAt: -1 }, skip, limit }),
       productRepo.count(filter),
@@ -85,7 +96,7 @@ class AdminService {
     const { page, limit, skip } = parsePagination(queryParams);
     const filter = {};
     if (queryParams.status) filter.status = queryParams.status;
-    if (queryParams.search) filter.orderNumber = new RegExp(queryParams.search, 'i');
+    if (queryParams.search) filter.orderNumber = queryParams.search;
     const [orders, total] = await Promise.all([
       orderRepo.findAll(filter, { sort: { createdAt: -1 }, skip, limit, populate: [{ path: 'user', select: 'firstName lastName email phone' }] }),
       orderRepo.count(filter),
