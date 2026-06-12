@@ -12,7 +12,8 @@ const placeOrder = Joi.object({
     quantity: Joi.number().integer().min(1).required(),
   })).min(1).required(),
   shippingAddressId: Joi.string().hex().length(24).required(),
-  paymentMethod: Joi.string().valid(...Object.values(PAYMENT_METHOD)).required(),
+  paymentMethod: Joi.string().valid(PAYMENT_METHOD.COD).required(), // only COD active — razorpay, stripe, wallet commented out
+  // paymentMethod: Joi.string().valid(...Object.values(PAYMENT_METHOD)).required(),
   couponCode: Joi.string().uppercase().optional(),
   customerNote: Joi.string().max(500).optional(),
 });

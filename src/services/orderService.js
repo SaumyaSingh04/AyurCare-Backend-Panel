@@ -19,15 +19,14 @@ class OrderService {
     let subtotal = 0;
 
     for (const item of items) {
-      let product = null;
-      // Only try to find by ID if it's a valid hex string
-      if (/^[0-9a-fA-F]{24}$/.test(item.productId)) {
-        product = await productRepo.findById(item.productId).catch(() => null);
+      if (!item.productId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.productId)) {
+        throw ApiError.badRequest(`Invalid productId: ${item.productId}`);
       }
-      
-      // Fallback values if product doesn't exist in DB
-      let price = product ? product.price : (item.price || 0);
-      let name = product ? product.name : (item.name || 'Unknown Product');
+      const product = await productRepo.findById(item.productId);
+      if (!product || !product.isActive) throw ApiError.notFound(MESSAGES.PRODUCT_NOT_FOUND);
+
+      let price = product.price;
+      let name = product.name;
       let variantDetails = null;
 
       if (product && item.variantId) {
@@ -37,19 +36,19 @@ class OrderService {
         variantDetails = { name: variant.name, color: variant.attributes?.color, size: variant.attributes?.size };
       }
 
-      const totalPrice = price * item.quantity;
+      const totalPrice = Number(price) * item.quantity;
       subtotal += totalPrice;
       orderItems.push({
-        product: product ? product.id : null,
+        product: product.id,
         variant: item.variantId,
-        name: name,
-        slug: product ? product.slug : item.productId,
-        thumbnail: product ? product.thumbnail?.url : null,
-        sku: product ? product.sku : `SKU-${item.productId}`,
+        name,
+        slug: product.slug,
+        thumbnail: product.thumbnail?.url ?? null,
+        sku: product.sku ?? null,
         variantDetails,
         quantity: item.quantity,
         price,
-        compareAtPrice: product ? product.compareAtPrice : price,
+        compareAtPrice: product.compareAtPrice ?? null,
         totalPrice,
       });
     }
@@ -85,11 +84,9 @@ class OrderService {
       customerNote,
     });
 
-    // Decrement stock for real products only
+    // Decrement stock
     for (const item of items) {
-      if (/^[0-9a-fA-F]{24}$/.test(item.productId)) {
-        await productRepo.decrementStock(item.productId, item.variantId, item.quantity).catch(() => {});
-      }
+      await productRepo.decrementStock(item.productId, item.variantId, item.quantity).catch(() => {});
     }
 
     // Clear cart
@@ -186,7 +183,7 @@ class OrderService {
     const payment = await paymentRepo.create({
       order: orderId,
       user: userId,
-      provider: PAYMENT_METHOD.RAZORPAY,
+      provider: PAYMENT_METHOD.COD,
       amount: COD_SETTINGS.CONFIRMATION_CHARGE,
       currency: 'INR',
       status: PAYMENT_STATUS.CAPTURED,
@@ -199,7 +196,7 @@ class OrderService {
       paymentStatus: PAYMENT_STATUS.PAID,
       status: ORDER_STATUS.CONFIRMED,
     });
-    await orderRepo.addStatusHistory(orderId, ORDER_STATUS.CONFIRMED, `COD confirmation charge of ₹${COD_SETTINGS.CONFIRMATION_CHARGE} collected via Razorpay`, userId);
+    await orderRepo.addStatusHistory(orderId, ORDER_STATUS.CONFIRMED, `COD confirmation charge of ₹${COD_SETTINGS.CONFIRMATION_CHARGE} collected`, userId);
 
     await notificationService.createNotification(userId, {
       type: NOTIFICATION_TYPE.PAYMENT_SUCCESS,

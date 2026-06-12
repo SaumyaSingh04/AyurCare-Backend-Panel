@@ -92,7 +92,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ─── Temporary Admin Setup ───────────────────────────────────────────────────
+// ─── Temporary Admin Setup (development only) ──────────────────────────────
+if (process.env.NODE_ENV !== 'production') {
 app.get('/make-me-admin', async (req, res) => {
   try {
     const prisma = require('./repositories/prismaClient');
@@ -128,6 +129,7 @@ app.get('/magic-login', async (req, res) => {
     res.status(500).send(err.message);
   }
 });
+}
 
 // ─── Swagger API Docs ────────────────────────────────────────────────────────
 app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(specs, {

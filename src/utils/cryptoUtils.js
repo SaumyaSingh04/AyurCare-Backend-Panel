@@ -2,24 +2,19 @@
 
 const crypto = require('crypto');
 
-/**
- * Verify Razorpay payment signature
- * signature = HMAC-SHA256(razorpay_order_id + "|" + razorpay_payment_id, secret)
- */
-const verifyRazorpaySignature = (orderId, paymentId, signature) => {
-  const secret = process.env.RAZORPAY_KEY_SECRET;
-  const body = `${orderId}|${paymentId}`;
-  const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
-};
+// ─── Razorpay signature verify (commented out — only COD active) ────────────────
+// const verifyRazorpaySignature = (orderId, paymentId, signature) => {
+//   const secret = process.env.RAZORPAY_KEY_SECRET;
+//   const body = `${orderId}|${paymentId}`;
+//   const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
+//   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+// };
 
-/**
- * Verify Stripe webhook signature
- */
-const verifyStripeWebhook = (rawBody, signature) => {
-  const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-  return stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
-};
+// ─── Stripe webhook verify (commented out — only COD active) ─────────────────────
+// const verifyStripeWebhook = (rawBody, signature) => {
+//   const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+//   return stripe.webhooks.constructEvent(rawBody, signature, process.env.STRIPE_WEBHOOK_SECRET);
+// };
 
 /**
  * Generate a secure random hex token
@@ -36,4 +31,5 @@ const hmacSHA256 = (data, secret) => {
   return crypto.createHmac('sha256', secret).update(data).digest('hex');
 };
 
-module.exports = { verifyRazorpaySignature, verifyStripeWebhook, generateSecureToken, hmacSHA256 };
+// module.exports = { verifyRazorpaySignature, verifyStripeWebhook, generateSecureToken, hmacSHA256 };
+module.exports = { generateSecureToken, hmacSHA256 };

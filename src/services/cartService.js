@@ -33,19 +33,21 @@ class CartService {
 
     if (stock < quantity) throw ApiError.badRequest(MESSAGES.INSUFFICIENT_STOCK);
 
+    // Check if item already exists in cart
     let cart = await cartRepo.findByUser(userId);
-    if (!cart) cart = await cartRepo.upsertCart(userId, { user: userId, items: [] });
+    if (!cart) cart = await cartRepo.create({ user: userId, items: [] });
 
-    const existingIdx = cart.items.findIndex(
-      (i) => i.product._id.toString() === productId && (!variantId || i.variant?.toString() === variantId)
+    const existing = cart.items.find(
+      (i) => i.product.id === productId && (!variantId || i.variant === variantId)
     );
 
-    if (existingIdx > -1) {
-      const newQty = cart.items[existingIdx].quantity + quantity;
+    if (existing) {
+      const newQty = existing.quantity + quantity;
       if (stock < newQty) throw ApiError.badRequest(MESSAGES.INSUFFICIENT_STOCK);
-      cart.items[existingIdx].quantity = newQty;
+      // Update quantity via repo
+      await cartRepo.updateItemQuantity(cart.id, existing.id, newQty);
     } else {
-      cart.items.push({
+      await cartRepo.addItem(userId, {
         product: productId,
         variant: variantId || undefined,
         variantDetails,
@@ -58,38 +60,35 @@ class CartService {
       });
     }
 
-    await cart.save();
-    return cart;
+    return cartRepo.findByUser(userId);
   }
 
   async updateItem(userId, itemId, quantity) {
     const cart = await cartRepo.findByUser(userId);
     if (!cart) throw ApiError.notFound('Cart not found.');
 
-    const item = cart.items.id(itemId);
+    const item = cart.items.find((i) => i.id === itemId);
     if (!item) throw ApiError.notFound('Cart item not found.');
 
     if (quantity <= 0) {
-      item.remove();
+      await cartRepo.removeItem(cart.id, itemId);
     } else {
-      const product = await productRepo.findById(item.product._id || item.product);
+      const product = await productRepo.findById(item.product.id);
       const stock = item.variant
         ? product?.variants?.id(item.variant)?.stock
         : product?.stock;
       if (stock < quantity) throw ApiError.badRequest(MESSAGES.INSUFFICIENT_STOCK);
-      item.quantity = quantity;
+      await cartRepo.updateItemQuantity(cart.id, itemId, quantity);
     }
 
-    await cart.save();
-    return cart;
+    return cartRepo.findByUser(userId);
   }
 
   async removeItem(userId, itemId) {
     const cart = await cartRepo.findByUser(userId);
     if (!cart) throw ApiError.notFound('Cart not found.');
-    cart.items = cart.items.filter((i) => i._id.toString() !== itemId);
-    await cart.save();
-    return cart;
+    await cartRepo.removeItem(cart.id, itemId);
+    return cartRepo.findByUser(userId);
   }
 
   async clearCart(userId) {
@@ -99,7 +98,9 @@ class CartService {
   async applyCoupon(userId, code) {
     const coupon = await couponRepo.findByCode(code);
     if (!coupon) throw ApiError.badRequest('Invalid coupon code.');
-    if (coupon.isExpired || coupon.isUsageLimitReached) throw ApiError.badRequest('Coupon is expired or exhausted.');
+    const now = new Date();
+    if (coupon.endDate < now || !coupon.isActive) throw ApiError.badRequest('Coupon is expired or exhausted.');
+    if (coupon.usageLimit != null && coupon.totalUsed >= coupon.usageLimit) throw ApiError.badRequest('Coupon is expired or exhausted.');
 
     const cart = await cartRepo.findByUser(userId);
     if (!cart) throw ApiError.notFound('Cart not found.');
@@ -116,10 +117,9 @@ class CartService {
       discount = Math.min(coupon.value, subtotal);
     }
 
-    cart.couponCode = coupon.code;
-    cart.couponDiscount = Math.round(discount);
-    await cart.save();
-    return { cart, discount: cart.couponDiscount };
+    const roundedDiscount = Math.round(discount);
+    await cartRepo.setCoupon(userId, coupon.code, roundedDiscount);
+    return { cart: await cartRepo.findByUser(userId), discount: roundedDiscount };
   }
 }
 

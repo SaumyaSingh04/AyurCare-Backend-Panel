@@ -35,7 +35,7 @@ class AuthService {
     const user = await userRepo.create(userData);
 
     // Send verification email
-    const verifyToken_ = generateToken({ userId: user._id }, TOKEN_TYPE.EMAIL_VERIFY);
+    const verifyToken_ = generateToken({ userId: user.id }, TOKEN_TYPE.EMAIL_VERIFY);
     const verifyUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verifyToken_}`;
     await sendEmail({
       to: email,
@@ -48,20 +48,13 @@ class AuthService {
   }
 
   async login({ email, password }) {
-    const user = await userRepo.findByEmail(email, true);
+    const user = await userRepo.findByEmail(email);
     if (!user) throw ApiError.unauthorized(MESSAGES.INVALID_CREDENTIALS);
     if (!user.isActive) throw ApiError.forbidden(MESSAGES.ACCOUNT_INACTIVE);
+    if (user.lockUntil && user.lockUntil > new Date()) throw ApiError.forbidden('Account temporarily locked. Try again later.');
 
     const isMatch = await user.comparePassword(password);
     
-    // --- TEMPORARY BYPASS FOR TESTING ---
-    if (email === 'saumya0419@gmail.com') {
-      user.role = 'admin'; // ensure they are admin
-      const { accessToken, refreshToken } = generateAuthTokens(user._id, 'admin');
-      return { accessToken, refreshToken, user: user.toPublicJSON() };
-    }
-    // ------------------------------------
-
     if (!isMatch) {
       await this._handleFailedLogin(user);
       throw ApiError.unauthorized(MESSAGES.INVALID_CREDENTIALS);
@@ -70,13 +63,13 @@ class AuthService {
     // Bypass email verification check for local dev
     // if (!user.isEmailVerified) throw ApiError.forbidden(MESSAGES.ACCOUNT_NOT_VERIFIED);
 
-    const { accessToken, refreshToken } = generateAuthTokens(user._id, user.role);
-    await userRepo.addRefreshToken(user._id, refreshToken);
-    await userRepo.updateLastLogin(user._id);
+    const { accessToken, refreshToken } = generateAuthTokens(user.id, user.role);
+    await userRepo.addRefreshToken(user.id, refreshToken);
+    await userRepo.updateLastLogin(user.id);
 
     // Reset login attempts on success
     if (user.loginAttempts > 0) {
-      await userRepo.updateById(user._id, { loginAttempts: 0, lockUntil: null });
+      await userRepo.updateById(user.id, { loginAttempts: 0, lockUntil: null });
     }
 
     return { accessToken, refreshToken, user: user.toPublicJSON() };
@@ -88,7 +81,7 @@ class AuthService {
     const attempts = (user.loginAttempts || 0) + 1;
     const update = { loginAttempts: attempts };
     if (attempts >= MAX_ATTEMPTS) update.lockUntil = new Date(Date.now() + LOCK_DURATION_MS);
-    await userRepo.updateById(user._id, update);
+    await userRepo.updateById(user.id, update);
   }
 
   async logout(userId, refreshToken) {
@@ -97,14 +90,14 @@ class AuthService {
 
   async refreshAccessToken(refreshToken) {
     const payload = verifyToken(refreshToken, TOKEN_TYPE.REFRESH);
-    const user = await userRepo.findById(payload.userId, { select: '+refreshTokens' });
+    const user = await userRepo.findById(payload.userId);
     if (!user || !user.refreshTokens.includes(refreshToken)) {
       throw ApiError.unauthorized('Invalid refresh token.');
     }
 
-    const { accessToken, refreshToken: newRefreshToken } = generateAuthTokens(user._id, user.role);
-    await userRepo.removeRefreshToken(user._id, refreshToken);
-    await userRepo.addRefreshToken(user._id, newRefreshToken);
+    const { accessToken, refreshToken: newRefreshToken } = generateAuthTokens(user.id, user.role);
+    await userRepo.removeRefreshToken(user.id, refreshToken);
+    await userRepo.addRefreshToken(user.id, newRefreshToken);
     return { accessToken, refreshToken: newRefreshToken };
   }
 
@@ -120,7 +113,7 @@ class AuthService {
   async forgotPassword(email) {
     const user = await userRepo.findByEmail(email);
     if (!user) return; // Silently succeed — don't reveal email existence
-    const token = generateToken({ userId: user._id }, TOKEN_TYPE.RESET_PASSWORD);
+    const token = generateToken({ userId: user.id }, TOKEN_TYPE.RESET_PASSWORD);
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     await sendEmail({
       to: email,
@@ -145,7 +138,7 @@ class AuthService {
     const user = await userRepo.findByEmail(phoneOrEmail);
     if (!user) throw ApiError.notFound('Account not found.');
 
-    await userRepo.updateById(user._id, { otp: hashed, otpExpiry: expiry, otpAttempts: 0 });
+    await userRepo.updateById(user.id, { otp: hashed, otpExpiry: expiry, otpAttempts: 0 });
 
     await sendEmail({ to: user.email, subject: 'Your OTP — Medical E-Commerce', template: 'otp', data: { otp, name: user.firstName } });
     return { message: MESSAGES.OTP_SENT };
@@ -155,18 +148,18 @@ class AuthService {
     const user = await userRepo.findByEmail(phoneOrEmail);
     if (!user) throw ApiError.notFound('Account not found.');
 
-    const stored = await userRepo.findOne({ _id: user._id }, { select: '+otp +otpExpiry +otpAttempts' });
-    if (!stored.otp || !stored.otpExpiry || new Date() > stored.otpExpiry) {
+    // user already has otp/otpExpiry from findByEmail — no separate findOne needed
+    if (!user.otp || !user.otpExpiry || new Date() > user.otpExpiry) {
       throw ApiError.badRequest(MESSAGES.OTP_INVALID);
     }
 
-    const isMatch = await compareOTP(otp, stored.otp);
+    const isMatch = await compareOTP(otp, user.otp);
     if (!isMatch) {
-      await userRepo.incrementOtpAttempts(user._id);
+      await userRepo.incrementOtpAttempts(user.id);
       throw ApiError.badRequest(MESSAGES.OTP_INVALID);
     }
 
-    await userRepo.updateById(user._id, { otp: null, otpExpiry: null, isPhoneVerified: true });
+    await userRepo.updateById(user.id, { otp: null, otpExpiry: null, isPhoneVerified: true });
     return { message: MESSAGES.OTP_VERIFIED };
   }
 }
