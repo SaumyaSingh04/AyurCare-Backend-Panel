@@ -130,6 +130,10 @@ const reviewUpload = makeDynamicUpload('reviews', {
   limits: { fileSize: UPLOAD.MAX_SIZE_BYTES, files: 5 }
 });
 
+const blogUpload = makeDynamicUpload('blogs', {
+  limits: { fileSize: UPLOAD.MAX_SIZE_BYTES }
+});
+
 // Generic multer error handler
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -140,4 +144,4 @@ const handleMulterError = (err, req, res, next) => {
   next(err);
 };
 
-module.exports = { productUpload, avatarUpload, categoryUpload, reviewUpload, handleMulterError };
+module.exports = { productUpload, avatarUpload, categoryUpload, reviewUpload, blogUpload, handleMulterError };

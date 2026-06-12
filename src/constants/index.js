@@ -97,6 +97,8 @@ const CACHE_TTL = {
   ORDER_LIST: 60,          // 1 min
   ANALYTICS: 900,          // 15 min
   OTP: 600,                // 10 min
+  BLOG_LIST: 300,          // 5 min
+  BLOG_DETAIL: 600,        // 10 min
 };
 
 // ─── Pagination ───────────────────────────────────────────────────────────────
@@ -192,6 +194,12 @@ const MESSAGES = {
   PAYMENT_VERIFIED: 'Payment verified.',
   REFUND_INITIATED: 'Refund initiated.',
   INVALID_SIGNATURE: 'Invalid payment signature.',
+
+  // Blog
+  BLOG_NOT_FOUND: 'Blog not found.',
+  BLOG_CREATED: 'Blog created successfully.',
+  BLOG_PUBLISHED: 'Blog published successfully.',
+  BLOG_UNPUBLISHED: 'Blog unpublished successfully.',
 
   // Server
   INTERNAL_ERROR: 'Internal server error.',

@@ -52,6 +52,7 @@ const options = {
       { name: 'Coupons', description: 'Discount coupons' },
       { name: 'Admin', description: 'Admin panel endpoints' },
       { name: 'Notifications', description: 'User notifications' },
+      { name: 'Blogs', description: 'Blog post management' },
     ],
   },
   apis: [

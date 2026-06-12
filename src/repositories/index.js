@@ -1,6 +1,7 @@
 'use strict';
 
 const BaseRepository = require('./baseRepo');
+const blogRepo = require('./blogRepo');
 const Category = require('../models/Category');
 const Cart = require('../models/Cart');
 const Payment = require('../models/Payment');
@@ -83,4 +84,5 @@ module.exports = {
   reviewRepo: new ReviewRepository(),
   couponRepo: new CouponRepository(),
   notificationRepo: new NotificationRepository(),
+  blogRepo,
 };
