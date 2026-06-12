@@ -6,7 +6,6 @@ const cookieParser = require('cookie-parser');
 const xss = require('xss-clean');
 const hpp = require('hpp');
 const morgan = require('morgan');
-const swaggerUi = require('swagger-ui-express');
 const path = require('path');
 
 const { specs } = require('./config/swagger');
@@ -132,11 +131,44 @@ app.get('/magic-login', async (req, res) => {
 }
 
 // ─── Swagger API Docs ────────────────────────────────────────────────────────
-app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(specs, {
-  explorer: true,
-  customSiteTitle: 'Medical E-Commerce API Docs',
-  customCss: '.swagger-ui .topbar { display: none }',
-}));
+// Serve raw OpenAPI JSON spec (used by swagger-ui CDN below)
+app.get('/api/v1/docs/swagger.json', (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.json(specs);
+});
+
+// Self-contained HTML page — loads swagger-ui from CDN, works on Vercel serverless
+app.get('/api/v1/docs', (req, res) => {
+  const specUrl = `${req.protocol}://${req.get('host')}/api/v1/docs/swagger.json`;
+  res.setHeader('Content-Type', 'text/html');
+  res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Medical E-Commerce API Docs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css" />
+  <style>
+    body { margin: 0; }
+    .swagger-ui .topbar { display: none; }
+  </style>
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    SwaggerUIBundle({
+      url: '${specUrl}',
+      dom_id: '#swagger-ui',
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+      layout: 'BaseLayout',
+      deepLinking: true,
+      persistAuthorization: true,
+    });
+  </script>
+</body>
+</html>`);
+});
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use(process.env.API_PREFIX || '/api/v1', routes);
