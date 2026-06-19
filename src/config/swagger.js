@@ -25,7 +25,7 @@ const options = {
         description: 'Development server',
       },
       {
-        url: 'https://api.medical-ecommerce.com/api/v1',//change this
+        url: 'https://medical-backend-sand.vercel.app/api/v1',
         description: 'Production server',
       },
     ],
