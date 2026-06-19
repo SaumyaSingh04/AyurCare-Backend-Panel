@@ -1,30 +1,84 @@
+'use strict';
+
 require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const connectDB = require('./config/db');
+const http = require('http');
+const app = require('./src/app');
+const { connectDB } = require('./src/config/database');
+const { connectRedis, getRedisClient } = require('./src/config/redis');
+const { initializeJobs } = require('./src/jobs');
+const { initializeSockets } = require('./src/sockets');
+const prisma = require('./src/repositories/prismaClient');
+const logger = require('./src/utils/logger');
+
 const dns = require('dns');
-
-const app = express();
 dns.setServers(['8.8.8.8', '8.8.4.4']);
-connectDB();
 
-app.use(cors({
-  origin: ['https://ayur-care-frontend-panel.vercel.app', 'http://localhost:5173'],
-  credentials: true
-}));
-app.use(express.json());
+const PORT = process.env.PORT || 5000;
+const APP_NAME = process.env.APP_NAME || 'Medical E-Commerce API';
 
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/products', require('./routes/productRoutes'));
-app.use('/api/appointments', require('./routes/appointmentRoutes'));
-app.use('/api/blogs', require('./routes/blogRoutes'));
-app.use('/api/users', require('./routes/userRoutes'));
+const server = http.createServer(app);
+initializeSockets(server);
 
-app.get('/', (req, res) => res.send('AyurCare API running'));
+const gracefulShutdown = (signal) => {
+  logger.info(`${signal} received. Initiating graceful shutdown...`);
 
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-}
+  server.close(async (err) => {
+    if (err) {
+      logger.error('Error during server close:', err);
+      process.exit(1);
+    }
 
-module.exports = app;
+    try {
+      await prisma.$disconnect();
+      logger.info('Prisma connection closed.');
+
+      const redisClient = getRedisClient();
+      if (redisClient && redisClient.status === 'ready') {
+        await redisClient.quit();
+        logger.info('Redis connection closed.');
+      }
+
+      logger.info(`${APP_NAME} shut down gracefully.`);
+      process.exit(0);
+    } catch (shutdownErr) {
+      logger.error('Error during graceful shutdown:', shutdownErr);
+      process.exit(1);
+    }
+  });
+
+  setTimeout(() => {
+    logger.error('Forcing shutdown after 30s timeout.');
+    process.exit(1);
+  }, 30000).unref();
+};
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', { message: err.message, stack: err.stack });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Promise Rejection:', { reason });
+  server.close(() => process.exit(1));
+});
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+const bootstrap = async () => {
+  try {
+    await connectDB();
+    await connectRedis();
+    initializeJobs();
+
+    server.listen(PORT, () => {
+      logger.info(`🚀 ${APP_NAME} running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+      logger.info(`📚 API Docs: http://localhost:${PORT}/api/v1/docs`);
+    });
+  } catch (err) {
+    logger.error('Failed to start server:', err);
+    process.exit(1);
+  }
+};
+
+bootstrap();
